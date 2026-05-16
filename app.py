@@ -30,6 +30,7 @@ from retrieval.vectorstore import (
 
 from retrieval.hybrid_retriever import (
     hybrid_retrieve,
+    reformulate_query,
 )
 
 from retrieval.reranker import (
@@ -244,6 +245,10 @@ question = st.chat_input(
 
 if question:
 
+    previous_messages = list(
+        st.session_state.messages
+    )
+
     st.session_state.messages.append(
         {
             "role": "user",
@@ -262,11 +267,20 @@ if question:
         ):
 
             # =========================
+            # Query Reformulation
+            # =========================
+
+            retrieval_query = reformulate_query(
+                query=question,
+                chat_history=previous_messages,
+            )
+
+            # =========================
             # Hybrid Retrieval
             # =========================
 
             retrieved_docs = hybrid_retrieve(
-                question=question,
+                question=retrieval_query,
                 vector_store=vector_store,
                 chunks=chunks,
                 top_k=top_k,
@@ -293,7 +307,7 @@ if question:
             # =========================
 
             reranked_docs = rerank_documents(
-                query=question,
+                query=retrieval_query,
                 documents=retrieved_docs,
                 top_k=top_k,
             )

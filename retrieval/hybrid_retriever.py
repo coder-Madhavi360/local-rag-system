@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List, Optional, Sequence
+import re
+from typing import Iterable, List, Mapping, Optional, Sequence
 
 from langchain_core.documents import Document
 
@@ -10,11 +11,17 @@ try:
 except (ImportError, ModuleNotFoundError):
     from langchain_classic.retrievers import EnsembleRetriever
 
+from core.llm import get_generator
+from core.prompts import (
+    build_query_reformulation_prompt,
+    format_chat_history,
+)
 from retrieval.bm25_retriever import build_bm25_retriever
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_HYBRID_WEIGHTS = [0.5, 0.5]
+MAX_REFORMULATED_QUERY_CHARS = 300
 
 
 # =========================
@@ -95,6 +102,128 @@ def _deduplicate_documents(
         )
 
     return unique_documents
+
+
+# =========================
+# Query Reformulation
+# =========================
+
+
+def _clean_reformulated_query(
+    generated_text: str,
+    fallback_query: str,
+) -> str:
+    reformulated_query = (
+        generated_text or ""
+    ).strip()
+
+    reformulated_query = re.sub(
+        r"^(standalone query|standalone question|query|question):\s*",
+        "",
+        reformulated_query,
+        flags=re.IGNORECASE,
+    )
+
+    reformulated_query = reformulated_query.splitlines()[0].strip()
+    reformulated_query = reformulated_query.strip(
+        "\"' "
+    )
+
+    if not reformulated_query:
+        return fallback_query
+
+    if len(reformulated_query) > MAX_REFORMULATED_QUERY_CHARS:
+        logger.warning(
+            "Discarding overly long reformulated query."
+        )
+        return fallback_query
+
+    return reformulated_query
+
+
+def reformulate_query(
+    query: str,
+    chat_history: Iterable[Mapping[str, str]] | None = None,
+) -> str:
+    """Rewrite follow-up questions into standalone retrieval queries.
+
+    Conversational users often ask ambiguous follow-ups such as "what about
+    security?" Hybrid retrieval works best when BM25 and Chroma receive a query
+    with explicit terms, so this lightweight step uses the existing local LLM
+    to resolve references from recent chat history before retrieval.
+    """
+
+    if not query or not query.strip():
+        return ""
+
+    original_query = query.strip()
+    formatted_history = format_chat_history(
+        chat_history
+    )
+
+    if not formatted_history:
+        logger.info(
+            "No chat history found. Using original query for retrieval."
+        )
+        print(
+            f"[query_reformulation] Original Query: {original_query}"
+        )
+        print(
+            f"[query_reformulation] Reformulated Query: {original_query}"
+        )
+        return original_query
+
+    try:
+        prompt = build_query_reformulation_prompt(
+            query=original_query,
+            chat_history=formatted_history,
+        )
+
+        tokenizer, model = get_generator()
+
+        inputs = tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=512,
+        )
+
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=64,
+            num_beams=4,
+            do_sample=False,
+        )
+
+        generated_text = tokenizer.decode(
+            outputs[0],
+            skip_special_tokens=True,
+        )
+
+        reformulated_query = _clean_reformulated_query(
+            generated_text,
+            original_query,
+        )
+
+    except Exception:
+        logger.exception(
+            "Query reformulation failed. Falling back to original query."
+        )
+        reformulated_query = original_query
+
+    logger.info(
+        "Original query: %s | Reformulated query: %s",
+        original_query,
+        reformulated_query,
+    )
+    print(
+        f"[query_reformulation] Original Query: {original_query}"
+    )
+    print(
+        f"[query_reformulation] Reformulated Query: {reformulated_query}"
+    )
+
+    return reformulated_query
 
 
 # =========================
