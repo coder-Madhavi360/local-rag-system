@@ -6,7 +6,7 @@ langchain-huggingface
 langchain-text-splitters
 chromadb
 sentence-transformers
-rank-bm25
+rank_bm25
 transformers
 torch
 pandas
