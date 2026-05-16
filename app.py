@@ -55,6 +55,10 @@ from core.llm import (
     generate_answer,
 )
 
+from evaluation.ragas_eval import (
+    run_ragas_evaluation,
+)
+
 from utils.cache import (
     clear_chat_history,
     initialize_chat_history,
@@ -397,6 +401,34 @@ if question:
                     unsafe_allow_html=True,
                 )
                 time.sleep(0.03)
+
+            # =========================
+            # RAG Evaluation
+            # =========================
+
+            ragas_scores, ragas_error = run_ragas_evaluation(
+                question=question,
+                answer=answer,
+                retrieved_docs=final_docs,
+            )
+
+            st.markdown(
+                "### RAG Evaluation"
+            )
+
+            if ragas_error:
+                st.warning(
+                    ragas_error
+                )
+            elif ragas_scores:
+                for metric_name, score in ragas_scores.items():
+                    st.markdown(
+                        f"- {metric_name}: {score}"
+                    )
+            else:
+                st.info(
+                    "RAGAS evaluation did not return scores."
+                )
 
             st.markdown(
                 f"### Confidence Score: {confidence}%"
