@@ -41,6 +41,13 @@ from retrieval.confidence import (
     confidence_score,
 )
 
+from core.memory import (
+    add_to_memory,
+    clear_memory,
+    get_chat_history,
+    initialize_memory,
+)
+
 from core.llm import (
     generate_answer,
 )
@@ -129,6 +136,10 @@ Upload multiple documents and ask grounded questions from uploaded files.
 # Sidebar
 # =========================
 
+conversation_memory = initialize_memory(
+    st.session_state
+)
+
 st.sidebar.header(
     "⚙️ Settings"
 )
@@ -163,6 +174,9 @@ if st.sidebar.button(
     "🧹 Clear Chat"
 ):
     st.session_state.messages = []
+    clear_memory(
+        conversation_memory
+    )
 
 # =========================
 # Save Uploaded Files
@@ -245,8 +259,12 @@ question = st.chat_input(
 
 if question:
 
-    previous_messages = list(
-        st.session_state.messages
+    # Conversation memory feeds prior turns into query reformulation. That lets
+    # follow-up questions become standalone retrieval queries while preserving
+    # the existing metadata filtering, hybrid retrieval, reranking, confidence,
+    # and context-viewer behavior.
+    memory_messages = get_chat_history(
+        conversation_memory
     )
 
     st.session_state.messages.append(
@@ -272,7 +290,7 @@ if question:
 
             retrieval_query = reformulate_query(
                 query=question,
-                chat_history=previous_messages,
+                chat_history=memory_messages,
             )
 
             # =========================
@@ -298,6 +316,11 @@ if question:
                         "role": "assistant",
                         "content": answer,
                     }
+                )
+                add_to_memory(
+                    conversation_memory,
+                    question,
+                    answer,
                 )
 
                 st.stop()
@@ -409,4 +432,9 @@ if question:
             "role": "assistant",
             "content": answer,
         }
+    )
+    add_to_memory(
+        conversation_memory,
+        question,
+        answer,
     )

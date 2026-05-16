@@ -153,17 +153,30 @@ def reformulate_query(
     """Rewrite follow-up questions into standalone retrieval queries.
 
     Conversational users often ask ambiguous follow-ups such as "what about
-    security?" Hybrid retrieval works best when BM25 and Chroma receive a query
-    with explicit terms, so this lightweight step uses the existing local LLM
-    to resolve references from recent chat history before retrieval.
+    security?" Conversation memory supplies recent turns, and this step turns
+    them into a standalone contextual query. Hybrid retrieval works best when
+    BM25 and Chroma receive explicit terms, so memory improves multi-turn
+    retrieval without changing metadata filtering, reranking, or answer
+    generation.
     """
 
     if not query or not query.strip():
         return ""
 
     original_query = query.strip()
+    history_messages = list(
+        chat_history or []
+    )
     formatted_history = format_chat_history(
-        chat_history
+        history_messages
+    )
+
+    logger.info(
+        "Reformulating query with %s memory messages.",
+        len(history_messages),
+    )
+    print(
+        f"[conversation_memory] Messages used for reformulation: {len(history_messages)}"
     )
 
     if not formatted_history:
@@ -175,6 +188,9 @@ def reformulate_query(
         )
         print(
             f"[query_reformulation] Reformulated Query: {original_query}"
+        )
+        print(
+            f"[query_reformulation] Contextual Retrieval Query: {original_query}"
         )
         return original_query
 
@@ -226,6 +242,9 @@ def reformulate_query(
     )
     print(
         f"[query_reformulation] Reformulated Query: {reformulated_query}"
+    )
+    print(
+        f"[query_reformulation] Contextual Retrieval Query: {reformulated_query}"
     )
 
     return reformulated_query
