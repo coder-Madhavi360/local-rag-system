@@ -11,6 +11,7 @@ from pathlib import Path
 
 import streamlit as st
 from utils.helpers import format_sources
+from utils.helpers import build_cited_context
 import time
 # =========================
 # Modular Imports
@@ -348,13 +349,7 @@ if question:
                 )
 
                 st.stop()
-            else:
-                answer=generate_answer(question,retrieved_docs,)
-                st.markdown("### Sources")
-
-                for source in formatted_sources:
-                    st.markdown(f"- {source}")
-
+            
             # =========================
             # Reranking
             # =========================
