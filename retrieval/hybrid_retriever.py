@@ -16,7 +16,12 @@ from core.prompts import (
     build_query_reformulation_prompt,
     format_chat_history,
 )
+from processing.metadata import (
+    apply_metadata_filter,
+    extract_metadata_filters,
+)
 from retrieval.bm25_retriever import build_bm25_retriever
+from retrieval.vectorstore import apply_metadata_filter as apply_chroma_filter
 
 logger = logging.getLogger(__name__)
 
@@ -235,6 +240,7 @@ def build_hybrid_retriever(
     vector_store,
     documents: Sequence[Document] | Iterable[Document] | None,
     k: int = 4,
+    metadata_filters: Mapping[str, object] | None = None,
 ) -> Optional[EnsembleRetriever]:
     """Build a hybrid retriever from Chroma semantic search and BM25.
 
@@ -243,9 +249,9 @@ def build_hybrid_retriever(
     retrieval uses BM25 sparse retrieval to reward exact token matches, which
     is especially useful for names, acronyms, file terms, IDs, and error text.
 
-    Hybrid retrieval improves RAG robustness by blending both signals. Better
-    retrieved context reduces the chance that the LLM has to guess, which helps
-    reduce hallucinations while preserving semantic understanding.
+    Hybrid retrieval improves RAG robustness by blending both signals. Metadata
+    filtering now runs before retrieval, so document-specific prompts narrow the
+    candidate set without changing the reranker, confidence score, or UI.
     """
 
     top_k = _safe_top_k(
@@ -268,18 +274,39 @@ def build_hybrid_retriever(
         return None
 
     try:
-        # Chroma semantic retrieval keeps embedding-based meaning search.
-        # Future extension: add metadata filters through search_kwargs.
-        chroma_retriever = vector_store.as_retriever(
-            search_type="similarity",
+        search_kwargs = apply_chroma_filter(
             search_kwargs={
                 "k": top_k,
             },
+            metadata_filters=metadata_filters,
+            documents=valid_documents,
         )
+
+        # Chroma semantic retrieval keeps embedding-based meaning search while
+        # using native metadata filtering when a source, page, or sheet is
+        # detected in the query.
+        chroma_retriever = vector_store.as_retriever(
+            search_type="similarity",
+            search_kwargs=search_kwargs,
+        )
+
+        # BM25 has no Chroma-style metadata where clause, so we filter the
+        # Document corpus first and then build the same keyword retriever.
+        bm25_documents = apply_metadata_filter(
+            valid_documents,
+            metadata_filters,
+        )
+
+        if metadata_filters and not bm25_documents:
+            logger.info(
+                "Metadata filters matched no BM25 documents: %s",
+                metadata_filters,
+            )
+            return None
 
         # BM25 keyword retrieval preserves exact-match sparse retrieval.
         bm25_retriever = build_bm25_retriever(
-            valid_documents,
+            bm25_documents,
             k=top_k,
         )
 
@@ -311,8 +338,8 @@ def hybrid_retrieve(
     keep working without UI or app-level rewrites.
 
     Future extension points:
-    - Apply query reformulation before retrieval.
-    - Add Chroma metadata filtering to search_kwargs.
+    - User-selected filters from the UI.
+    - Advanced metadata search across document collections.
     - Send hybrid results to a reranker for final ordering.
     - Attach confidence metadata after retrieval or reranking.
     - Incorporate conversational memory into the retrieval query.
@@ -324,11 +351,27 @@ def hybrid_retrieve(
     top_k_value = _safe_top_k(
         top_k
     )
+    metadata_filters = extract_metadata_filters(
+        question
+    )
+
+    filtered_chunks = apply_metadata_filter(
+        chunks,
+        metadata_filters,
+    )
+
+    if metadata_filters and not filtered_chunks:
+        logger.info(
+            "No chunks matched metadata filters: %s",
+            metadata_filters,
+        )
+        return []
 
     hybrid_retriever = build_hybrid_retriever(
         vector_store=vector_store,
-        documents=chunks,
+        documents=filtered_chunks,
         k=top_k_value,
+        metadata_filters=metadata_filters,
     )
 
     if hybrid_retriever is None:
