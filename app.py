@@ -293,16 +293,12 @@ if question:
             # =========================
 
             reranked_docs = rerank_documents(
-                question=question,
+                query=question,
                 documents=retrieved_docs,
                 top_k=top_k,
             )
 
-            final_docs = [
-                doc
-                for doc, _
-                in reranked_docs
-            ]
+            final_docs = reranked_docs
 
             # =========================
             # Confidence Score
