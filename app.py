@@ -11,6 +11,7 @@ from pathlib import Path
 
 import streamlit as st
 from utils.helpers import format_sources
+import time
 # =========================
 # Modular Imports
 # =========================
@@ -267,10 +268,15 @@ for message in load_chat_history(
 # =========================
 # User Input
 # =========================
+# =========================
+# Voice Input
+# =========================
+
 
 question = st.chat_input(
     "Ask question from uploaded documents..."
 )
+
 
 # =========================
 # Question Pipeline
@@ -382,15 +388,20 @@ if question:
             # =========================
             # Display Answer
             # =========================
+            response_placeholder=st.empty()
+            streamed_text = ""
 
-            st.markdown(
-                f"""
-                <div class="answer-box">
-                    {answer}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            for word in answer.split():
+                streamed_text += word + " "
+                response_placeholder.markdown(
+                      f"""
+                     <div class="answer-box">
+                    {streamed_text}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                time.sleep(0.03)
 
             st.markdown(
                 f"### Confidence Score: {confidence}%"
