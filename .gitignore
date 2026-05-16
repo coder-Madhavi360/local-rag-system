@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+data/vector_db/
+data/uploaded_docs?
+*.pyc
+.env

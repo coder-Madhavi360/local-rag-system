@@ -1,0 +1,15 @@
+streamlit
+langchain
+langchain-community
+langchain-chroma
+langchain-huggingface
+langchain-text-splitters
+chromadb
+sentence-transformers
+rank-bm25
+transformers
+torch
+pandas
+openpyxl
+pypdf
+unstructured
