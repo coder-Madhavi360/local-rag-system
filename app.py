@@ -10,7 +10,7 @@ import html
 from pathlib import Path
 
 import streamlit as st
-
+from utils.helpers import format_sources
 # =========================
 # Modular Imports
 # =========================
@@ -321,6 +321,7 @@ if question:
                 chunks=chunks,
                 top_k=top_k,
             )
+            formatted_sources = format_sources(retrieved_docs)
 
             if not retrieved_docs:
                 answer = (
@@ -341,6 +342,12 @@ if question:
                 )
 
                 st.stop()
+            else:
+                answer=generate_answer(question,retrieved_docs,)
+                st.markdown("### Sources")
+
+                for source in formatted_sources:
+                    st.markdown(f"- {source}")
 
             # =========================
             # Reranking

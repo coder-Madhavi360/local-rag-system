@@ -17,3 +17,30 @@ def safe_filename(filename):
         "_",
         name
     )
+def format_sources(docs):
+    """
+    Format retrieved document sources cleanly.
+    """
+
+    formatted_sources = []
+
+    for doc in docs:
+        metadata = doc.metadata
+
+        source = metadata.get("source", "Unknown")
+        page = metadata.get("page", None)
+        chunk = metadata.get("chunk", None)
+
+        source_name = source.split("/")[-1]
+
+        if page is not None:
+            formatted = f"{source_name} — Page {page}"
+        elif chunk is not None:
+            formatted = f"{source_name} — Chunk {chunk}"
+        else:
+            formatted = source_name
+
+        if formatted not in formatted_sources:
+            formatted_sources.append(formatted)
+
+    return formatted_sources
