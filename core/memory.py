@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, List
+from typing import Any, Iterable, List, Mapping
 
 try:
     from langchain.memory import ConversationBufferMemory
@@ -187,4 +187,66 @@ def clear_memory(
     except Exception:
         logger.exception(
             "Failed to clear conversation memory."
+        )
+
+
+def restore_memory_from_chat_history(
+    memory: ConversationBufferMemory,
+    messages: Iterable[Mapping[str, str]] | None,
+) -> None:
+    """Restore ConversationBufferMemory from persisted session chat history.
+
+    Chat display history and ConversationBufferMemory serve different parts of
+    the RAG flow: history restores visible messages across Streamlit reruns,
+    while memory provides prior turns to query reformulation for contextual
+    retrieval. Replaying saved turns keeps those two stores aligned after a
+    session reset or a partially corrupted memory state.
+    """
+
+    history = list(
+        messages or []
+    )
+    if not history or get_chat_history(
+        memory
+    ):
+        return
+
+    pending_user_message: str | None = None
+
+    try:
+        for message in history:
+            role = message.get(
+                "role"
+            )
+            content = message.get(
+                "content",
+                "",
+            )
+
+            if role == "user":
+                pending_user_message = content
+                continue
+
+            if role == "assistant" and pending_user_message is not None:
+                memory.save_context(
+                    {
+                        "input": pending_user_message,
+                    },
+                    {
+                        "output": content,
+                    },
+                )
+                pending_user_message = None
+
+        logger.info(
+            "Restored conversation memory from %s chat history messages.",
+            len(history),
+        )
+        print(
+            f"[conversation_memory] Restored from chat history messages: {len(history)}"
+        )
+
+    except Exception:
+        logger.exception(
+            "Failed to restore conversation memory from chat history."
         )

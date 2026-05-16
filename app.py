@@ -46,10 +46,18 @@ from core.memory import (
     clear_memory,
     get_chat_history,
     initialize_memory,
+    restore_memory_from_chat_history,
 )
 
 from core.llm import (
     generate_answer,
+)
+
+from utils.cache import (
+    clear_chat_history,
+    initialize_chat_history,
+    load_chat_history,
+    save_chat_message,
 )
 
 # =========================
@@ -139,6 +147,13 @@ Upload multiple documents and ask grounded questions from uploaded files.
 conversation_memory = initialize_memory(
     st.session_state
 )
+chat_history = initialize_chat_history(
+    st.session_state
+)
+restore_memory_from_chat_history(
+    conversation_memory,
+    chat_history,
+)
 
 st.sidebar.header(
     "⚙️ Settings"
@@ -173,7 +188,9 @@ uploaded_files = st.sidebar.file_uploader(
 if st.sidebar.button(
     "🧹 Clear Chat"
 ):
-    st.session_state.messages = []
+    clear_chat_history(
+        st.session_state
+    )
     clear_memory(
         conversation_memory
     )
@@ -232,10 +249,12 @@ else:
 # Chat Memory
 # =========================
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-for message in st.session_state.messages:
+# Chat history is stored in Streamlit session state so it survives reruns in
+# the current app session. ConversationBufferMemory stays aligned with it for
+# follow-up question handling and multi-turn contextual retrieval.
+for message in load_chat_history(
+    st.session_state
+):
 
     with st.chat_message(
         message["role"]
@@ -267,11 +286,10 @@ if question:
         conversation_memory
     )
 
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": question,
-        }
+    save_chat_message(
+        st.session_state,
+        "user",
+        question,
     )
 
     with st.chat_message("user"):
@@ -311,11 +329,10 @@ if question:
 
                 st.warning(answer)
 
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": answer,
-                    }
+                save_chat_message(
+                    st.session_state,
+                    "assistant",
+                    answer,
                 )
                 add_to_memory(
                     conversation_memory,
@@ -427,11 +444,10 @@ if question:
                     unsafe_allow_html=True,
                 )
 
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": answer,
-        }
+    save_chat_message(
+        st.session_state,
+        "assistant",
+        answer,
     )
     add_to_memory(
         conversation_memory,
