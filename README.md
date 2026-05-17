@@ -9,7 +9,7 @@ The system runs without external LLM APIs and is intended for research, experime
 - Fully local document question answering
 - Hybrid retrieval with semantic and keyword-based search
 - SentenceTransformer-based embeddings
-- FAISS vector search
+- Chromadb vector search
 - Cross-encoder reranking for improved context precision
 - Local LLM-based answer generation
 - Citation-aware responses using retrieved source chunks
@@ -27,7 +27,7 @@ The system follows a modular RAG architecture. Documents are ingested, chunked, 
 1. Documents are loaded from local storage.
 2. Text is split into overlapping chunks.
 3. Chunks are embedded using SentenceTransformers.
-4. FAISS retrieves semantically similar chunks.
+4. Chromadb retrieves semantically similar chunks.
 5. Hybrid retrieval improves recall using lexical matching.
 6. A cross-encoder reranker reorders retrieved chunks by relevance.
 7. The local LLM receives the reranked context.
@@ -49,7 +49,7 @@ These metrics use keyword overlap, cosine similarity, retrieval overlap, and heu
 ## Technology Stack
 
 - Streamlit
-- FAISS
+- Chromadb
 - SentenceTransformers
 - Cross Encoder Reranker
 - Local LLM
