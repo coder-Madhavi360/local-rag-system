@@ -1,62 +1,90 @@
-# Local Hugging Face RAG Demo
+# Fully Local RAG System
 
-This project is a basic local RAG system using Streamlit, Hugging Face models, recursive chunking, broad document loading, caching, and a persistent ChromaDB vector database.
+A fully local Retrieval-Augmented Generation system designed for document-grounded question answering with transparent retrieval, reranking, citation-aware response generation, confidence scoring, and hallucination risk evaluation.
 
-## What It Uses
+The system runs without external LLM APIs and is intended for research, experimentation, and evaluation of local RAG pipelines.
 
-- `Streamlit` for the web UI
-- `RecursiveCharacterTextSplitter` for chunking documents
-- `sentence-transformers/all-MiniLM-L6-v2` for Hugging Face embeddings
-- `ChromaDB` for local persistent vector search
-- `BM25Retriever` plus semantic retrieval for hybrid search
-- Optional `BAAI/bge-reranker-base` cross-encoder reranking
-- A persisted `vector_db/` folder so the same index can be reused
-- A persisted `uploaded_docs/` folder for files uploaded through the UI
-- Streamlit caching for chunking, embeddings, and generation models
-- `google/flan-t5-small` for local Hugging Face answer generation
-- `pypdf` for reading PDF files
-- `unstructured` for parsing many other document formats
-- `pandas` and `openpyxl` for direct Excel loading
+## Key Features
 
-## Install
+- Fully local document question answering
+- Hybrid retrieval with semantic and keyword-based search
+- SentenceTransformer-based embeddings
+- FAISS vector search
+- Cross-encoder reranking for improved context precision
+- Local LLM-based answer generation
+- Citation-aware responses using retrieved source chunks
+- Confidence scoring for answer reliability
+- Retrieved context viewer for explainability
+- Lightweight hallucination and answer-quality evaluation
+- Streamlit interface for interactive experimentation
 
-```bash
-pip install -r requirements.txt
-```
+## System Architecture
 
-The first run may download Hugging Face models, so it can take a little while.
+The system follows a modular RAG architecture. Documents are ingested, chunked, embedded, and indexed locally. At query time, relevant chunks are retrieved, reranked, and passed to a local LLM with citation-aware prompting. The generated answer is evaluated using local heuristic metrics and displayed alongside confidence scores and retrieved evidence.
 
-## Run
+## Retrieval and Generation Pipeline
 
-```bash
-streamlit run app.py
-```
+1. Documents are loaded from local storage.
+2. Text is split into overlapping chunks.
+3. Chunks are embedded using SentenceTransformers.
+4. FAISS retrieves semantically similar chunks.
+5. Hybrid retrieval improves recall using lexical matching.
+6. A cross-encoder reranker reorders retrieved chunks by relevance.
+7. The local LLM receives the reranked context.
+8. The answer is generated with inline source citations.
+9. Confidence and hallucination metrics are computed locally.
+10. Retrieved contexts are displayed for inspection.
 
-Then open the local Streamlit URL shown in the terminal.
+## Local Evaluation Metrics
 
-## How It Works
+The system includes lightweight local evaluation metrics designed to avoid external judge models.
 
-1. Recursively loads readable files from `docs/`.
-2. Saves uploaded documents into `uploaded_docs/` so they remain available after restart.
-3. Splits documents with recursive chunking.
-4. Creates embeddings with a Hugging Face sentence-transformer model.
-5. Stores the embeddings in a persistent ChromaDB vector database.
-6. Retrieves with hybrid semantic + BM25 search.
-7. Optionally reranks retrieved chunks with a cross-encoder.
-8. Shows confidence and source references.
-9. Sends the retrieved context to a Hugging Face generation model.
+- **Answer Relevancy**: Measures alignment between the user query and generated answer.
+- **Context Match**: Measures how well the answer is supported by retrieved context.
+- **Retrieval Quality**: Estimates relevance of retrieved chunks to the query.
+- **Hallucination Risk**: Estimates unsupported content in the generated answer.
 
-## Files
+These metrics use keyword overlap, cosine similarity, retrieval overlap, and heuristic scoring.
 
-```text
-app.py              Streamlit RAG app
-requirements.txt    Python dependencies
-docs/               Local knowledge base
-uploaded_docs/      Uploaded documents saved by the app
-vector_db/          Local persisted ChromaDB index, created at runtime
-```
+## Technology Stack
 
-## File Support
+- Streamlit
+- FAISS
+- SentenceTransformers
+- Cross Encoder Reranker
+- Local LLM
+- Python
+- HuggingFace Transformers
 
-Text files, PDFs, and Excel files are handled directly. Other formats are passed through `unstructured`, which supports many common document types such as Office files, HTML, emails, and more. Very specialized or encrypted binary files may still be skipped if no readable text can be extracted.
-#read_me_filr
+## Architecture Notes
+
+The system prioritizes transparency and local execution. Each stage of the RAG pipeline is independently inspectable, making it suitable for research-oriented evaluation of retrieval quality, grounding behavior, and answer faithfulness.
+
+## Limitations
+
+- Local LLM quality depends on model size and instruction-following ability.
+- Heuristic evaluation metrics are lightweight approximations, not replacements for human evaluation.
+- Retrieval quality depends on chunking strategy, embedding model, and document structure.
+
+## Future Improvements
+
+- Add configurable embedding and reranking models
+- Add benchmark dataset support
+- Add batch evaluation mode
+- Add experiment tracking for retrieval and generation settings
+- Add document-level metadata filtering controls
+
+Architecture Explanation
+
+The system is organized as a fully local RAG pipeline. Documents are first ingested and split into manageable chunks. Each chunk is embedded using a SentenceTransformer model and stored in a FAISS index for semantic retrieval.
+
+When a user asks a question, the system retrieves candidate chunks using hybrid retrieval. A cross-encoder reranker then scores each query-context pair to improve precision. The highest-ranked chunks are passed to the local LLM using a citation-aware prompt, allowing the answer to reference supporting evidence with inline citations.
+
+After generation, the system computes confidence and hallucination-related metrics using lightweight local heuristics. The final response, citations, evaluation scores, confidence score, and retrieved context are shown to the user for transparency.
+## 🏗️ System Architecture
+
+<p align="center">
+  <img src="assets/architecture.png" width="1000"/>
+</p>
+
+The project follows a fully local Retrieval-Augmented Generation (RAG) pipeline with recursive chunking, hybrid retrieval, reranking, citation-aware prompting, confidence scoring, and hallucination evaluation.
