@@ -27,7 +27,7 @@ The system follows a modular RAG architecture. Documents are ingested, chunked, 
 1. Documents are loaded from local storage.
 2. Text is split into overlapping chunks.
 3. Chunks are embedded using SentenceTransformers.
-4. FAISS retrieves semantically similar chunks.
+4. ChromaDB stores the document embeddings and retrieves the most semantically similar chunks for a given query.
 5. Hybrid retrieval improves recall using lexical matching.
 6. A cross-encoder reranker reorders retrieved chunks by relevance.
 7. The local LLM receives the reranked context.
