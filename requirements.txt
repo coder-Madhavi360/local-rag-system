@@ -13,3 +13,6 @@ pandas
 openpyxl
 pypdf
 unstructured
+python-docx
+ragas
+datasets
