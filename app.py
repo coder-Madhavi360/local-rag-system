@@ -8,10 +8,9 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 
 import html
 from pathlib import Path
-
+from pipeline.rag_pipeline import run_rag_pipeline
+from pipeline.insert import insert_into_memory, insert_into_vector_store
 import streamlit as st
-from utils.helpers import format_sources
-from utils.helpers import build_cited_context
 import time
 # =========================
 # Modular Imports
@@ -26,33 +25,11 @@ from processing.chunking import (
     split_documents,
 )
 
-from retrieval.vectorstore import (
-    build_vector_store,
-)
-
-from retrieval.hybrid_retriever import (
-    hybrid_retrieve,
-    reformulate_query,
-)
-
-from retrieval.reranker import (
-    rerank_documents,
-)
-
-from retrieval.confidence import (
-    confidence_score,
-)
-
 from core.memory import (
-    add_to_memory,
     clear_memory,
     get_chat_history,
     initialize_memory,
     restore_memory_from_chat_history,
-)
-
-from core.llm import (
-    generate_answer,
 )
 
 from evaluation.ragas_eval import (
@@ -241,7 +218,7 @@ if documents:
         chunk_overlap,
     )
 
-    vector_store = build_vector_store(
+    vector_store = insert_into_vector_store(
         chunks
     )
 
@@ -313,31 +290,19 @@ if question:
             "Generating answer..."
         ):
 
-            # =========================
-            # Query Reformulation
-            # =========================
-
-            retrieval_query = reformulate_query(
+            pipeline_result = run_rag_pipeline(
                 query=question,
-                chat_history=memory_messages,
-            )
-
-            # =========================
-            # Hybrid Retrieval
-            # =========================
-
-            retrieved_docs = hybrid_retrieve(
-                question=retrieval_query,
                 vector_store=vector_store,
                 chunks=chunks,
                 top_k=top_k,
+                chat_history=memory_messages,
             )
-            formatted_sources = format_sources(retrieved_docs)
 
-            if not retrieved_docs:
-                answer = (
-                    "No relevant information found in uploaded documents."
-                )
+            answer = pipeline_result["answer"]
+            final_docs = pipeline_result["final_docs"]
+            confidence = pipeline_result["confidence"]
+
+            if not final_docs:
 
                 st.warning(answer)
 
@@ -346,43 +311,13 @@ if question:
                     "assistant",
                     answer,
                 )
-                add_to_memory(
+                insert_into_memory(
                     conversation_memory,
                     question,
                     answer,
                 )
 
                 st.stop()
-            
-            # =========================
-            # Reranking
-            # =========================
-
-            reranked_docs = rerank_documents(
-                query=retrieval_query,
-                documents=retrieved_docs,
-                top_k=top_k,
-            )
-
-            final_docs = reranked_docs
-
-            # =========================
-            # Confidence Score
-            # =========================
-
-            confidence = confidence_score(
-                reranked_docs,
-                question,
-            )
-
-            # =========================
-            # Answer Generation
-            # =========================
-
-            answer = generate_answer(
-                question,
-                final_docs,
-            )
 
             # =========================
             # Display Answer
@@ -494,7 +429,7 @@ if question:
         "assistant",
         answer,
     )
-    add_to_memory(
+    insert_into_memory(
         conversation_memory,
         question,
         answer,
