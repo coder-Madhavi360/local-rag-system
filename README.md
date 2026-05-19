@@ -84,7 +84,7 @@ After generation, the system computes confidence and hallucination-related metri
 ## 🏗️ System Architecture
 
 <p align="center">
-  <img src="assets/architecture.png" width="1000"/>
+  <img src="assets/architecture1.PNG" width="1000"/>
 </p>
 
 The project follows a fully local Retrieval-Augmented Generation (RAG) pipeline with recursive chunking, hybrid retrieval, reranking, citation-aware prompting, confidence scoring, and hallucination evaluation.
